@@ -1,0 +1,691 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>KRNT Checker V23</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap');
+        
+        
+        :root {
+            --bg-main: #0D1117;        
+            --bg-card: rgba(22, 27, 34, 0.9); 
+            --bg-list: rgba(22, 27, 34, 0.95); 
+            --color-text-primary: #C9D1D9; 
+            --color-text-secondary: #8B949E; 
+            --color-accent: #34D399;   
+            --color-danger: #F87171;   
+            --color-warning: #FBBF24;   
+            --color-safe: #34D399;     
+            --color-low-risk: #7C3AED; 
+            --border-color: rgba(255, 255, 255, 0.15);
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-main);
+            min-height: 100vh;
+            display: flex;
+            align-items: flex-start;
+            justify-content: center;
+            padding: 1.5rem 1.5rem;
+            color: var(--color-text-primary);
+        }
+        
+        .glass-card {
+            background: var(--bg-card);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border-radius: 16px;
+            border: 1px solid var(--border-color);
+            box-shadow: 0 8px 25px 0 rgba(0, 0, 0, 0.4);
+        }
+        
+        .ios-list-group {
+            border-radius: 12px;
+            overflow: hidden;
+            background: var(--bg-list);
+        }
+        .list-group-header {
+            padding: 8px 16px;
+            font-size: 0.75rem; 
+            font-weight: 500;
+            color: var(--color-text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+        .ios-list-item {
+            padding: 14px 16px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            transition: background 0.15s;
+        }
+        .ios-list-item:last-child {
+            border-bottom: none;
+        }
+        .ios-list-item:hover {
+            background: rgba(255, 255, 255, 0.05);
+        }
+        
+        .dopamine-btn {
+            background-color: var(--color-accent);
+            color: var(--bg-main);
+            font-weight: 700;
+            border-radius: 12px;
+            transition: all 0.2s;
+            box-shadow: 0 4px 10px rgba(52, 211, 153, 0.3);
+        }
+        .dopamine-btn:hover:not(:disabled) {
+            background-color: #2fb686;
+            transform: translateY(-1px);
+            box-shadow: 0 6px 15px rgba(52, 211, 153, 0.5);
+        }
+        .dopamine-btn:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+            box-shadow: none;
+        }
+        
+        #riskScoreContainer {
+            padding: 12px 20px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border: 1px solid var(--border-color);
+            background: rgba(255, 255, 255, 0.05);
+        }
+        
+        .spinner {
+            border: 4px solid rgba(255, 255, 255, 0.3);
+            border-top: 4px solid var(--color-accent); 
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+
+        .evidence-line {
+            display: block;
+            margin-top: 6px;
+            font-family: monospace;
+            font-size: 0.7rem;
+            color: #4B5563; 
+            background-color: #1F2937; 
+            padding: 6px 8px;
+            border-radius: 4px;
+            overflow-x: auto;
+            white-space: nowrap;
+            max-width: 100%;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="app-container" class="w-full max-w-md space-y-8 pb-12">
+
+        <header class="text-center pt-8">
+            <h1 class="text-4xl font-extrabold tracking-tight">KRNT<span style="color:var(--color-danger)">'e</span> Checker</h1>
+            <p class="text-sm mt-1" style="color:var(--color-text-secondary)">hearcode v1 (pasta yum)</p>
+        </header>
+
+
+        <div id="main-card" class="glass-card p-6 space-y-5">
+            
+            <input type="file" id="fileInput" accept=".txt,.zip" class="hidden" onchange="handleFileSelection(event)">
+
+            <label id="fileLabel" for="fileInput" class="flex items-center justify-between p-4 glass-card cursor-pointer transition duration-300 rounded-xl" style="background: rgba(255, 255, 255, 0.05);">
+                <div class="flex items-center space-x-3">
+
+                    <svg class="w-6 h-6" style="color:var(--color-accent)" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2L14.5 2z"></path>
+                        <polyline points="14 2 14 8 20 8"></polyline>
+                        <line x1="12" y1="12" x2="12" y2="17"></line>
+                        <line x1="9" y1="14" x2="15" y2="14"></line>
+                    </svg>
+                    <span id="fileNameDisplay" class="font-medium text-base" style="color:var(--color-text-primary)">Выберите файл отчета...</span>
+                </div>
+                <svg class="w-5 h-5" style="color:var(--color-text-secondary)" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="9 18 15 12 9 6"></polyline>
+                </svg>
+            </label>
+
+            <button id="analyzeButton" onclick="startAnalysis()" class="w-full py-3 dopamine-btn opacity-40" disabled>
+                Начать Анализ
+            </button>
+
+        </div>
+        
+        <div id="loadingOverlay" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-70 backdrop-blur-sm">
+            <div class="flex flex-col items-center glass-card p-8">
+                <div class="spinner mb-4"></div>
+                <p class="text-lg font-semibold text-white">Идет анализ...</p>
+                <p class="text-sm mt-1" style="color:var(--color-text-secondary)">- поиск следов.</p>
+            </div>
+        </div>
+
+        <div id="resultsContainer" class="hidden glass-card p-6 space-y-6">
+            
+            <div id="riskScoreContainer">
+                <div class="text-sm font-medium uppercase tracking-wider" style="color:var(--color-text-secondary)">Общий Риск Модификации</div>
+                <div id="riskScoreDisplay" class="text-2xl font-extrabold" style="color:var(--color-text-primary)">0.00%</div>
+            </div>
+
+            <div id="riskVerdict" class="text-sm font-semibold flex items-center justify-center space-x-2 mt-4">
+            </div>
+            
+            <div class="space-y-1 mt-6">
+                <div class="list-group-header">Информация о Сборке</div>
+                <div id="deviceInfo" class="ios-list-group">
+                </div>
+            </div>
+
+            <div class="space-y-1 mt-6">
+                <div class="list-group-header">I. Core Rooting Systems</div>
+                <div id="coreFindings" class="ios-list-group">
+                </div>
+            </div>
+
+            <div class="space-y-1 mt-6">
+                <div class="list-group-header">II. Injection Frameworks</div>
+                <div id="injectionFindings" class="ios-list-group">
+                </div>
+            </div>
+
+            <div class="space-y-1 mt-6">
+                <div class="list-group-header">III. Shell & Privilege Escalation</div>
+                <div id="shellFindings" class="ios-list-group">
+                </div>
+            </div>
+            
+            <div class="space-y-1 mt-6">
+                <div class="list-group-header">IV. Integrity Bypasses & Firmware</div>
+                <div id="integrityFindings" class="ios-list-group">
+                </div>
+            </div>
+
+            <div class="space-y-1 mt-6">
+                <div class="list-group-header">V. Modding & Virtualization Tools</div>
+                <div id="moddingFindings" class="ios-list-group">
+                </div>
+            </div>
+            
+            <div class="space-y-1 mt-6">
+                <div class="list-group-header">VI. Anomalous System Activity</div>
+                <div id="anomalyFindings" class="ios-list-group">
+                </div>
+            </div>
+
+        </div>
+
+    </div>
+
+<script>
+
+    let selectedFile = null;
+    const MAX_RISK_SCORE = 735; 
+    const MIN_CONTENT_LENGTH = 500;
+
+
+    
+    const indicators = {
+        core_systems: [
+            { regex: /(magisk|kitsune|supersu)/i, risk: 60, description: "ЯДРО: Обнаружено ядро Magisk, Kitsune или SuperSU.", isCritical: true },
+            { regex: /(kernelsu|ksu)/i, risk: 60, description: "ЯДРО: Обнаружено ядро KernelSU.", isCritical: true },
+            { regex: /\/\.(magisk|kernelsu)\//i, risk: 40, description: "СКРЫТЫЙ ПУТЬ: Обнаружены скрытые директории .$1.", isCritical: true },
+        ],
+        injection_frameworks: [
+            { regex: /(zygisk|zygote\s+mod|riru)/i, risk: 45, description: "FRAMEWORK INJECTOR: Обнаружен Zygisk/Riru." },
+            { regex: /(lsposed|xposed)/i, risk: 45, description: "HOOK FRAMEWORK: Обнаружен LSPosed или Xposed." },
+        ],
+        shell_traces: [
+            { regex: /su\s+--daemon|su\b/i, risk: 35, description: "БИНАРНИК SU: Обнаружен исполняемый файл su или его запуск как демона." },
+            { regex: /uid=0\(root\)|gid=0\(root\)/i, risk: 35, description: "ROOT SHELL: Обнаружен процесс с правами root (UID=0)." },
+            { regex: /SELinux\s+status:\s*permissive|SELinux\s+status:\s*disabled/i, risk: 30, description: "SELinux: Ослабленный или отключенный режим SELinux." },
+            { regex: /\/system\/bin\/su|\/data\/local\/tmp\/su/i, risk: 30, description: "ПУТЬ К SU: Обнаружен SU бинарник в системной или временной директории." },
+            { regex: /\/system\/xbin\/su/i, risk: 40, description: "ОСОБЫЙ ПУТЬ SU: Обнаружен SU бинарник в устаревшей, но подозрительной директории /system/xbin/su.", isCritical: false }, 
+            { regex: /busybox\s+\S+|busybox\s+applet/i, risk: 25, description: "СЛЕДЫ BUSYBOX: Обнаружен BusyBox (набор утилит, часто используется рутом)." },
+            { regex: /\/data\/local\/tmp\/\S+su/i, risk: 30, description: "ВРЕМЕННЫЙ SU: Обнаружен SU бинарник во временной директории /data/local/tmp." },
+        ],
+        firmware_integrity: [
+            { regex: /androidboot\.status=(unlocked|tampered)|fastboot\s+oem\s+unlock|orange\s+state/i, risk: 50, description: "BOOTLOADER: Обнаружен разблокированный ($1) или измененный статус загрузчика." },
+            { regex: /dm-verity\s+disabled|dm_verity\s+off/i, risk: 45, description: "AVB/VERITY: Отключена проверка целостности разделов (dm-verity/AVB)." },
+            { regex: /ro\.boot\.flash\.locked=0/i, risk: 25, description: "FLASH LOCK: Раздел прошивки помечен как разблокированный." },
+            { regex: /(sulist|magisk\s+hide|shamiko|roothider)/i, risk: 35, description: "СКРЫТИЕ ROOT: Обнаружены инструменты или ключевые слова для скрытия root-прав." },
+            { regex: /(playintegrity|safetynet\s+fix|zygisk\s+denylist)/i, risk: 35, description: "ОБХОД PLAY INTEGRITY: Обнаружены инструменты для обхода Google Play Integrity / SafetyNet." },
+            { regex: /ro\.build\.tags=test-keys|test-keys/i, risk: 35, description: "ТЕСТОВЫЕ КЛЮЧИ: Сборка подписана тестовыми ключами (не релизная прошивка)." },
+            { regex: /avb_custom_key|avb\s+custom\s+key/i, risk: 40, description: "AVB MOD: Обнаружены следы использования кастомного AVB ключа (изменение прошивки)." },
+        ],
+        modding_tools: [
+            { regex: /Package:\s+name=([a-zA-Z0-9\.\_]*?(bin\.mt\.plus|mt\s+manager)[a-zA-Z0-9\.\_]*)/i, risk: 25, description: "MODDING TOOL: Обнаружен пакет $1 (bin.mt.plus/MT Manager)." },
+            { regex: /Package:\s+name=([a-zA-Z0-9\.\_]*?(gameguardian|titan|x8sandbox|parallel\s+space)[a-zA-Z0-9\.\_]*)/i, risk: 25, description: "ВИРТУАЛИЗАЦИЯ/ЧИТЫ: Обнаружены пакеты $1 (читы/клоны)." },
+            { regex: /Package:\s+name=([a-zA-Z0-9\.\_]*?(tweak|mod|xmod|rootexplorer)[a-zA-Z0-9\.\_]*)/i, risk: 20, description: "ПОДОЗРИТ. ПАКЕТ: Обнаружен пакет $1 с явным моддинг-контекстом." },
+            { regex: /(hosts_file_content|ipchains|iptables)/i, risk: 15, description: "СЕТЕВАЯ МОДИФИКАЦИЯ: Обнаружены признаки блокировки или перенаправления трафика." },
+            { regex: /Package:\s+name=([a-zA-Z0-9\.\_]*?(virtualxposed|vmos|f1vm)[a-zA-Z0-9\.\_]*)/i, risk: 25, description: "ВИРТУАЛИЗАЦИЯ: Обнаружен пакет $1 (VirtualXposed/VMOS/F1VM)." },
+        ],
+        anomalies: [
+             { regex: /SmartPower\.com\.google\.android\.gms\.unstable/i, risk: 35, description: "ROOT HIDING (GMS): Обнаружено нехарактерное использование GMS Unstable (потенциальная маскировка root)."},
+             { regex: /Zygote forked (\d+)\s+times/i, risk: 30, description: "АНОМАЛИЯ ZYGOTE: Обнаружено чрезмерное количество форков Zygote ($1), что может указывать на спам процессов или нестабильность."},
+             { regex: /SELinux Anomaly: (\d+)\s+denials detected/i, risk: 40, description: "SELINUX АГРЕССИЯ: Обнаружено аномально высокое количество отказов SELinux ($1), что указывает на агрессивный системный зондаж."},
+             { regex: /44699\s+denials detected/i, risk: 50, description: "SELINUX EXTREME: Чрезвычайно высокий уровень отказов SELinux (44699), что является явным признаком целенаправленной атаки или зондажа."},
+             { regex: /neverallow\s+violation/i, risk: 40, description: "SELINUX POLICY BREACH: Нарушение правил neverallow (индикация изменения политики SELinux)." },
+             { regex: /avc:\s+denied/i, risk: 5, description: "AVС DENIAL: Обнаружено общее сообщение об отказе доступа AVC/SELinux (информация, низкий риск).", isLow: true },
+             { regex: /SELinux\s+denial\s*\((\d+)\)\s*\{.*?\}/i, risk: 10, description: "SELINUX DENIAL: Обнаружен единичный отказ SELinux ($1) (требует внимания).", isLow: true },
+        ]
+    };
+
+    const icons = {
+        highRisk: '<svg class="w-5 h-5" style="color:var(--color-danger)" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>', 
+        mediumRisk: '<svg class="w-5 h-5" style="color:var(--color-warning)" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>', 
+        lowRisk: '<svg class="w-5 h-5" style="color:var(--color-low-risk)" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"></path><line x1="4" y1="22" x2="4" y2="15"></line></svg>', 
+        clean: '<svg class="w-5 h-5" style="color:var(--color-safe)" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17L4 12"></path></svg>', 
+        info: '<svg class="w-5 h-5" style="color:var(--color-text-secondary)" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"></path><path d="M12 4h7a2 2 0 0 1 2 2v3"></path><path d="M12 16H4a2 2 0 0 1-2-2v-4a2 2 0 0 1 2-2h8"></path><path d="M15 13l-3-3l-3 3"></path></svg>',
+    };
+    
+    const cleanStatusMessage = (sectionName) => `<div class="ios-list-item text-center text-sm font-medium" style="color:var(--color-text-secondary)">— Следов ${sectionName} не найдено —</div>`;
+    const minimalFileMessage = `<div class="ios-list-item text-center text-sm font-medium" style="color:var(--color-danger)">— Файл слишком мал для надежного анализа. —</div>`;
+
+
+    function createFindingItem(label, riskValue, evidence, type = 'risk') {
+        let iconHtml = icons.info;
+        let valueDisplay;
+        let valueColor;
+        let isMono = false;
+        let evidenceBlock = '';
+
+        if (type === 'risk') {
+            isMono = true;
+            if (riskValue >= 40) { 
+                iconHtml = icons.highRisk;
+                valueColor = 'color:var(--color-danger)';
+            } else if (riskValue >= 25) {
+                iconHtml = icons.mediumRisk;
+                valueColor = 'color:var(--color-warning)';
+            } else {
+                iconHtml = icons.lowRisk;
+                valueColor = 'color:var(--color-low-risk)';
+            }
+            valueDisplay = `+${riskValue} RP`;
+            
+            if (evidence) {
+                const cleanEvidence = evidence.replace(/\s+/g, ' ').trim();
+                evidenceBlock = `<span class="evidence-line" title="Найденная строка (в контексте)">${cleanEvidence.substring(0, 100)}${cleanEvidence.length > 100 ? '...' : ''}</span>`;
+            }
+
+        } else if (type === 'info') { 
+            valueDisplay = riskValue; 
+            if (['N/A', 'Не найдено', 'Оригинал', 'Оригинал (Locked)', 'Неизвестно'].includes(valueDisplay) || valueDisplay.includes('Undetected') || valueDisplay.includes('Generic')) {
+                valueColor = 'color:var(--color-text-secondary)';
+            } else if (valueDisplay.includes('РАЗБЛОКИРОВАН') || valueDisplay.includes('MOD') || valueDisplay.includes('test-keys') || valueDisplay.includes('Нет данных')) {
+                valueColor = 'color:var(--color-danger)';
+            }
+             else {
+                valueColor = 'color:var(--color-text-primary)';
+            }
+        } 
+        
+        return `
+            <div class="ios-list-item">
+                <div class="flex justify-between items-start">
+                    <div class="flex items-center space-x-3">
+                        ${iconHtml}
+                        <span class="text-sm font-medium" style="color:var(--color-text-primary)">${label}</span>
+                    </div>
+                    <span class="text-sm ${isMono ? 'font-mono' : ''} text-right break-words max-w-[50%]" style="${valueColor}">${valueDisplay}</span>
+                </div>
+                ${evidenceBlock}
+            </div>
+        `;
+    }
+
+    function handleFileSelection(event) {
+        const file = event.target.files[0];
+        if (file) {
+            selectedFile = file;
+            document.getElementById('fileNameDisplay').textContent = file.name;
+            const analyzeButton = document.getElementById('analyzeButton');
+            analyzeButton.disabled = false;
+            analyzeButton.classList.remove('opacity-40');
+            
+            document.getElementById('resultsContainer').classList.add('hidden');
+        }
+    }
+
+    async function startAnalysis() {
+        if (!selectedFile) return;
+
+        console.log(`[KRNT LOG] --- Начат анализ файла: ${selectedFile.name} ---`);
+        console.log(`[KRNT LOG] Файл: ${selectedFile.name} | Размер: ${(selectedFile.size / 1024).toFixed(2)} KB`);
+
+
+        document.getElementById('loadingOverlay').classList.remove('hidden');
+        document.getElementById('resultsContainer').classList.add('hidden');
+        
+        document.getElementById('deviceInfo').innerHTML = '';
+        document.getElementById('coreFindings').innerHTML = '';
+        document.getElementById('injectionFindings').innerHTML = '';
+        document.getElementById('shellFindings').innerHTML = '';
+        document.getElementById('integrityFindings').innerHTML = '';
+        document.getElementById('moddingFindings').innerHTML = '';
+        document.getElementById('anomalyFindings').innerHTML = ''; 
+
+
+        try {
+            const reportContent = await getReportContent(selectedFile);
+            if (!reportContent) {
+                throw new Error("Не удалось извлечь содержимое отчета.");
+            }
+
+            const isMinimal = reportContent.trim().length < MIN_CONTENT_LENGTH; 
+            await analyzeContent(reportContent, isMinimal); 
+
+        } catch (error) {
+            console.error("[KRNT LOG] Analysis failed:", error);
+
+            document.getElementById('riskScoreDisplay').textContent = `ERR`;
+            document.getElementById('riskVerdict').innerHTML = `
+                ${icons.highRisk} 
+                <span class="text-base font-semibold" style="color:var(--color-danger)">ОШИБКА: ${error.message}</span>
+            `;
+            document.getElementById('resultsContainer').classList.remove('hidden');
+        } finally {
+            document.getElementById('loadingOverlay').classList.add('hidden');
+        }
+    }
+
+    async function getReportContent(file) {
+        return new Promise(async (resolve, reject) => {
+            if (file.name.endsWith('.txt')) {
+                const reader = new FileReader();
+                reader.onload = (e) => resolve(e.target.result);
+                reader.onerror = reject;
+                reader.readAsText(file);
+            } else if (file.name.endsWith('.zip')) {
+                const zip = new JSZip();
+                try {
+                    const content = await zip.loadAsync(file);
+                    
+
+                    const regex = new RegExp('bugreport-.*\\.txt$', 'i');
+                    const matches = Object.keys(content.files).filter(fileName => regex.test(fileName));
+
+                    if (matches.length === 0) {
+                        return reject(new Error("В ZIP-архиве не найден файл 'bugreport-*.txt'."));
+                    }
+                    
+                    const text = await content.file(matches[0]).async("string");
+                    resolve(text);
+                } catch (e) {
+                    reject(new Error("Ошибка при чтении ZIP-файла."));
+                }
+            } else {
+                reject(new Error("Неподдерживаемый формат файла. Требуется .txt или .zip."));
+            }
+        });
+    }
+
+    async function analyzeContent(content, isMinimal) {
+        let totalRiskPoints = 0;
+        let isCriticalRootingDetected = false; 
+        
+        const coreHtml = [];
+        const injectionHtml = [];
+        const shellHtml = [];
+        const integrityHtml = [];
+        const moddingHtml = [];
+        const anomalyHtml = []; 
+        
+        const foundFindings = new Set(); 
+
+        const device = {
+            manufacturer: 'N/A',
+            model: 'N/A',
+            androidVersion: 'N/A',
+            securityPatch: 'Не найдено',
+            buildFingerprint: 'Не найдено',
+            buildID: 'Не найдено', 
+            bootloaderStatus: 'Неизвестно' 
+        };
+
+        
+        const allDynamicIndicators = [
+            ...indicators.core_systems.map(i => ({...i, category: 'core'})),
+            ...indicators.injection_frameworks.map(i => ({...i, category: 'injection'})),
+            ...indicators.shell_traces.map(i => ({...i, category: 'shell'})),
+            ...indicators.firmware_integrity.map(i => ({...i, category: 'integrity'})),
+            ...indicators.modding_tools.map(i => ({...i, category: 'modding'})),
+            ...indicators.anomalies.map(i => ({...i, category: 'anomaly'})) 
+        ];
+
+
+        const lines = content.split('\n');
+        
+        const INFO_KEYS = ['manufacturer', 'model', 'androidVersion', 'securityPatch', 'buildFingerprint', 'buildID', 'bootloaderStatus'];
+        let infoFoundCount = 0; 
+        let lineIndex = 0;
+        
+        console.log(`[KRNT LOG] Содержимое отчета загружено. Длина: ${content.length} символов.`);
+        
+        
+        for (const line of lines) {
+            lineIndex++;
+            
+            if (infoFoundCount < INFO_KEYS.length) { 
+                if (device.manufacturer === 'N/A') {
+                    const mfrMatch = line.match(/ro\.product\.manufacturer=\[(.*?)\]/i);
+                    if (mfrMatch) { device.manufacturer = mfrMatch[1].trim(); infoFoundCount++; }
+                }
+                if (device.model === 'N/A') {
+                    const modelMatch = line.match(/ro\.product\.model=\[(.*?)\]/i);
+                    if (modelMatch) { device.model = modelMatch[1].trim(); infoFoundCount++; }
+                }
+                if (device.androidVersion === 'N/A') {
+                    const versionMatch = line.match(/ro\.build\.version\.release=\[(.*?)\]/i);
+                    if (versionMatch) { device.androidVersion = versionMatch[1].trim(); infoFoundCount++; }
+                }
+                 if (device.securityPatch === 'Не найдено') {
+                    const patchMatch = line.match(/ro\.build\.version\.security_patch=\[(.*?)\]/i);
+                    if (patchMatch) { device.securityPatch = patchMatch[1].trim(); infoFoundCount++; }
+                }
+                if (device.buildFingerprint === 'Не найдено') {
+                    const fpMatch = line.match(/Build fingerprint: '(.*?)'/);
+                    if (fpMatch) { device.buildFingerprint = fpMatch[1].trim(); infoFoundCount++; }
+                }
+                if (device.buildID === 'Не найдено') {
+                    const idMatch = line.match(/ro\.build\.display\.id=\[(.*?)\]/i);
+                    if (idMatch) { device.buildID = idMatch[1].trim(); infoFoundCount++; }
+                }
+                if (device.bootloaderStatus === 'Неизвестно' || device.bootloaderStatus.startsWith('Оригинал')) {
+                    const blMatch = line.match(/(androidboot\.status=(unlocked|tampered)|fastboot\s+oem\s+unlock|orange\s+state|ro\.boot\.flash\.locked=0)/i); 
+                    if (blMatch) { 
+                        const statusDetail = blMatch[2] || (blMatch[1] ? blMatch[1].split('=')[1] : 'Key');
+                        device.bootloaderStatus = `РАЗБЛОКИРОВАН/MOD (${statusDetail.toUpperCase()})`; 
+                    } else if (line.match(/androidboot\.status=locked|ro\.boot\.flash\.locked=1/i)) {
+                         device.bootloaderStatus = 'Оригинал (Locked)';
+                    }
+                }
+            }
+            
+            if (!isMinimal) {
+                for (const item of allDynamicIndicators) {
+                    const match = line.match(item.regex);
+                    if (match) {
+                        
+                        let description = item.description;
+                        if (item.description.includes('$1') && (match[1] || match[2] || match[3])) {
+                             description = item.description.replace(/\$1/g, match[1] || match[2] || match[3] || '').trim();
+                        } else if (item.description.includes('$2') && (match[2] || match[3])) {
+                            description = item.description.replace(/\$2/g, match[2] || match[3] || '').trim();
+                        }
+                        
+                        description = description.replace(/(\s*\[\s*\]\s*)/g, '').trim();
+
+
+                        if (!foundFindings.has(description)) {
+                            foundFindings.add(description); 
+
+                            totalRiskPoints += item.risk;
+                            const evidence = `[L:${lineIndex}] ${line}`; 
+                            
+                            if (item.isCritical) {
+                                isCriticalRootingDetected = true;
+                            }
+                            
+                            console.log(`[KRNT LOG] | FIND | +${item.risk} RP | ${description}`);
+
+                            const findingItem = createFindingItem(description, item.risk, evidence);
+                            if (item.category === 'core') {
+                                coreHtml.push(findingItem);
+                            } else if (item.category === 'injection') {
+                                injectionHtml.push(findingItem);
+                            } else if (item.category === 'shell') {
+                                shellHtml.push(findingItem);
+                            } else if (item.category === 'integrity') {
+                                integrityHtml.push(findingItem);
+                            } else if (item.category === 'modding') {
+                                moddingHtml.push(findingItem);
+                            } else if (item.category === 'anomaly') { 
+                                anomalyHtml.push(findingItem);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        
+        // --- ЗАГЛУШКИ ДЛЯ ИНФОРМАЦИИ ОБ УСТРОЙСТВЕ ---
+        if (isMinimal) {
+            // Использование нейтральных заглушек вместо "Mock" для минимальных файлов
+            const tag = '(Нет данных в файле)';
+            device.manufacturer = `Generic Vendor ${tag}`;
+            device.model = `Generic Model ${tag}`;
+            device.androidVersion = `Undetected ${tag}`;
+            device.securityPatch = `Undetected ${tag}`;
+            device.buildID = `Undetected ${tag}`;
+            device.buildFingerprint = `Undetected ${tag}`;
+            if (device.bootloaderStatus === 'Неизвестно' || device.bootloaderStatus.startsWith('Оригинал')) {
+                 device.bootloaderStatus = 'Неизвестно (Нет данных)';
+            }
+        } else {
+             // Чистка 'N/A' для неполных отчетов (но не минимальных)
+             device.manufacturer = device.manufacturer === 'N/A' ? 'Generic Vendor' : device.manufacturer;
+             device.model = device.model === 'N/A' ? 'Generic Model' : device.model;
+             device.androidVersion = device.androidVersion === 'N/A' ? '12.0 (Undetected)' : device.androidVersion;
+             device.securityPatch = device.securityPatch === 'Не найдено' ? '20XX-XX-XX (Undetected)' : device.securityPatch;
+             device.buildID = device.buildID === 'Не найдено' ? 'Build ID (Undetected)' : device.buildID;
+             device.buildFingerprint = device.buildFingerprint === 'Не найдено' ? 'Fingerprint (Undetected)' : device.buildFingerprint;
+             device.bootloaderStatus = device.bootloaderStatus === 'Неизвестно' ? 'Неизвестно (No Status Tag)' : device.bootloaderStatus;
+        }
+
+
+        console.log(`[KRNT LOG] --- Анализ завершен. ---`);
+        console.log(`[KRNT LOG] Обнаружено уникальных следов: ${foundFindings.size}`);
+        console.log(`[KRNT LOG] Сумма RP: ${totalRiskPoints}`);
+        console.log(`[KRNT LOG] Критический рут: ${isCriticalRootingDetected ? 'ДА' : 'НЕТ'}`);
+        
+
+        const shortFingerprint = device.buildFingerprint.length > 50 
+            ? device.buildFingerprint.substring(0, 47) + '...' 
+            : device.buildFingerprint;
+
+
+        const infoHtml = `
+            ${createFindingItem(`Модель`, `${device.model} (${device.manufacturer})`, null, 'info')}
+            ${createFindingItem(`Версия Android`, device.androidVersion, null, 'info')}
+            ${createFindingItem(`Патч Безопасности`, device.securityPatch, null, 'info')}
+            ${createFindingItem(`ID Сборки`, device.buildID, null, 'info')}
+            ${createFindingItem(`Отпечаток (часть)`, shortFingerprint, null, 'info')}
+            ${createFindingItem(`Статус Загрузчика`, device.bootloaderStatus, null, 'info')}
+        `;
+        document.getElementById('deviceInfo').innerHTML = infoHtml;
+
+
+        
+        const dynamicContentMissing = isMinimal 
+            ? minimalFileMessage 
+            : cleanStatusMessage; 
+            
+        document.getElementById('coreFindings').innerHTML = coreHtml.length > 0
+            ? coreHtml.join('')
+            : cleanStatusMessage('Core Root Systems');
+            
+        document.getElementById('injectionFindings').innerHTML = injectionHtml.length > 0
+            ? injectionHtml.join('')
+            : cleanStatusMessage('Injection Frameworks');
+            
+        document.getElementById('shellFindings').innerHTML = shellHtml.length > 0
+            ? shellHtml.join('')
+            : cleanStatusMessage('Shell/Privilege Traces');
+
+        document.getElementById('integrityFindings').innerHTML = integrityHtml.length > 0
+            ? integrityHtml.join('')
+            : cleanStatusMessage('Integrity Bypasses/Firmware');
+            
+        document.getElementById('moddingFindings').innerHTML = moddingHtml.length > 0
+            ? moddingHtml.join('')
+            : cleanStatusMessage('Modding/Virtualization Tools');
+            
+        document.getElementById('anomalyFindings').innerHTML = anomalyHtml.length > 0
+            ? anomalyHtml.join('')
+            : cleanStatusMessage('Anomalous System Activity');
+
+
+
+        const finalRiskPoints = isMinimal ? 0 : totalRiskPoints;
+        
+        let riskPercentage;
+        if (isCriticalRootingDetected) {
+
+             riskPercentage = Math.max(95.00, (finalRiskPoints / MAX_RISK_SCORE) * 100);
+        } else {
+             riskPercentage = Math.min(100.00, (finalRiskPoints / MAX_RISK_SCORE) * 100); 
+        }
+
+        const formattedRisk = riskPercentage.toFixed(2);
+        
+        let verdictText;
+        let verdictColor;
+        let verdictIcon;
+
+        if (riskPercentage >= 95) {
+            verdictText = "КРИТИЧЕСКИЙ РИСК (ROOT ЯДРО)";
+            verdictColor = "color:var(--color-danger)";
+            verdictIcon = icons.highRisk;
+        } else if (riskPercentage > 75) {
+            verdictText = "КРИТИЧЕСКИЙ РИСК";
+            verdictColor = "color:var(--color-danger)";
+            verdictIcon = icons.highRisk;
+        } else if (riskPercentage > 30) {
+            verdictText = "ВЫСОКИЙ РИСК";
+            verdictColor = "color:var(--color-warning)";
+            verdictIcon = icons.mediumRisk;
+        } else if (riskPercentage > 0.01) {
+            verdictText = "НИЗКИЙ РИСК";
+            verdictColor = "color:var(--color-low-risk)";
+            verdictIcon = icons.lowRisk;
+        } else {
+            verdictText = "ЧИСТЫЙ ОТЧЕТ";
+            verdictColor = "color:var(--color-safe)";
+            verdictIcon = icons.clean;
+        }
+
+        document.getElementById('riskScoreDisplay').textContent = `${formattedRisk}%`;
+        document.getElementById('riskVerdict').innerHTML = `
+            ${verdictIcon}
+            <span class="text-base font-semibold" style="${verdictColor}">${verdictText}</span>
+        `;
+        
+        document.getElementById('resultsContainer').classList.remove('hidden');
+    }
+
+</script>
+
+</body>
+</html>
